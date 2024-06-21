@@ -12,8 +12,8 @@
 # CMake versions greater than the JSONCPP_NEWEST_VALIDATED_POLICIES_VERSION policies will
 # continue to generate policy warnings "CMake Warning (dev)...Policy CMP0XXX is not set:"
 #
-set(JSONCPP_OLDEST_VALIDATED_POLICIES_VERSION "3.8.0")
-set(JSONCPP_NEWEST_VALIDATED_POLICIES_VERSION "3.13.2")
+set(JSONCPP_OLDEST_VALIDATED_POLICIES_VERSION "3.21..")
+set(JSONCPP_NEWEST_VALIDATED_POLICIES_VERSION "3.29")
 cmake_minimum_required(VERSION ${JSONCPP_OLDEST_VALIDATED_POLICIES_VERSION})
 if("${CMAKE_VERSION}" VERSION_LESS "${JSONCPP_NEWEST_VALIDATED_POLICIES_VERSION}")
     #Set and use the newest available cmake policies that are validated to work
@@ -39,12 +39,6 @@ foreach(pold "") # Currently Empty
         cmake_policy(SET ${pold} OLD)
     endif()
 endforeach()
-
-# Build the library with C++11 standard support, independent from other including
-# software which may use a different CXX_STANDARD or CMAKE_CXX_STANDARD.
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_EXTENSIONS OFF)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Ensure that CMAKE_BUILD_TYPE has a value specified for single configuration generators.
 if(NOT DEFINED CMAKE_BUILD_TYPE AND NOT DEFINED CMAKE_CONFIGURATION_TYPES)
@@ -74,6 +68,15 @@ project(jsoncpp
         # IMPORTANT: also update the PROJECT_SOVERSION!!
         VERSION 1.9.5 # <major>[.<minor>[.<patch>[.<tweak>]]]
         LANGUAGES CXX)
+
+
+if (PROJECT_IS_TOP_LEVEL)
+    # Build the library with C++11 standard support, independent from other including
+    # software which may use a different CXX_STANDARD or CMAKE_CXX_STANDARD.
+    set(CMAKE_CXX_STANDARD 11)
+    set(CMAKE_CXX_EXTENSIONS OFF)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+endif()
 
 message(STATUS "JsonCpp Version: ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}")
 set(PROJECT_SOVERSION 25)
@@ -105,6 +108,8 @@ endif()
 
 set(JSONCPP_USE_SECURE_MEMORY "0" CACHE STRING "-D...=1 to use memory-wiping allocator for STL")
 
+add_library(project_options INTERFACE)
+
 configure_file("${PROJECT_SOURCE_DIR}/version.in"
     "${PROJECT_BINARY_DIR}/version"
     NEWLINE_STYLE UNIX)
@@ -113,22 +118,22 @@ macro(use_compilation_warning_as_error)
     if(MSVC)
         # Only enabled in debug because some old versions of VS STL generate
         # warnings when compiled in release configuration.
-        add_compile_options($<$<CONFIG:Debug>:/WX>)
+        target_compile_options(project_options INTERFACE $<$<CONFIG:Debug>:/WX>)
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        add_compile_options(-Werror)
+        target_compile_options(project_options INTERFACE -Werror)
         if(JSONCPP_WITH_STRICT_ISO)
-            add_compile_options(-pedantic-errors)
+            target_compile_options(project_options INTETFACE -pedantic-errors)
         endif()
     endif()
 endmacro()
 
 # Include our configuration header
-include_directories(${jsoncpp_SOURCE_DIR}/include)
+target_include_directories(project_options INTERFACE ${jsoncpp_SOURCE_DIR}/include)
 
 if(MSVC)
     # Only enabled in debug because some old versions of VS STL generate
     # unreachable code warning when compiled in release configuration.
-    add_compile_options($<$<CONFIG:Debug>:/W4>)
+    target_compile_options(project_options INTERFACE $<$<CONFIG:Debug>:/W4>)
     if (JSONCPP_STATIC_WINDOWS_RUNTIME)
         set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     endif()
@@ -136,30 +141,30 @@ endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     # using regular Clang or AppleClang
-    add_compile_options(-Wall -Wconversion -Wshadow)
+    target_compile_options(project_options INTERFACE -Wall -Wconversion -Wshadow)
 
     if(JSONCPP_WITH_WARNING_AS_ERROR)
-        add_compile_options(-Werror=conversion -Werror=sign-compare)
+        target_compile_options(project_options INTERFACE  -Werror=conversion -Werror=sign-compare)
     endif()
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     # using GCC
-    add_compile_options(-Wall -Wconversion -Wshadow -Wextra)
+    target_compile_options(project_options INTERFACE  -Wall -Wconversion -Wshadow -Wextra)
     # not yet ready for -Wsign-conversion
 
     if(JSONCPP_WITH_STRICT_ISO)
-        add_compile_options(-Wpedantic)
+        target_compile_options(project_options INTERFACE -Wpedantic)
     endif()
     if(JSONCPP_WITH_WARNING_AS_ERROR)
-        add_compile_options(-Werror=conversion)
+        target_compile_options(project_options INTERFACE -Werror=conversion)
     endif()
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
     # using Intel compiler
-    add_compile_options(-Wall -Wconversion -Wshadow -Wextra)
+    target_compile_options(project_options INTERFACE -Wall -Wconversion -Wshadow -Wextra)
 
     if(JSONCPP_WITH_WARNING_AS_ERROR)
-        add_compile_options(-Werror=conversion)
+        target_compile_options(project_options INTERFACE -Werror=conversion)
     elseif(JSONCPP_WITH_STRICT_ISO)
-        add_compile_options(-Wpedantic)
+        target_compile_options(project_options INTERFACE -Wpedantic)
     endif()
 endif()
 

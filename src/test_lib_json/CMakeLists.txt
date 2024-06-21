@@ -11,13 +11,15 @@ add_executable(jsoncpp_test
 
 if(BUILD_SHARED_LIBS)
     if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.12.0)
-        add_compile_definitions( JSON_DLL )
+        target_compile_definitions(jsoncpp_test PRIVATE JSON_DLL )
     else()
-        add_definitions( -DJSON_DLL )
+        target_compile_definitions(jsoncpp_test PRIVATE -DJSON_DLL )
     endif()
-    target_link_libraries(jsoncpp_test jsoncpp_lib)
-else()
-    target_link_libraries(jsoncpp_test jsoncpp_static)
+    target_link_libraries(jsoncpp_test jsoncpp_lib
+        $<BUILD_INTERFACE:project_options>
+    )
+    else()
+    target_link_libraries(jsoncpp_test jsoncpp_static $<BUILD_INTERFACE:project_options>)
 endif()
 
 # another way to solve issue #90

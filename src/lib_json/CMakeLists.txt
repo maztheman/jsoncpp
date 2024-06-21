@@ -1,12 +1,15 @@
+add_library(jsonlib_options INTERFACE)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.1.2)
     #-Werror=* was introduced -after- GCC 4.1.2
-    add_compile_options("-Werror=strict-aliasing")
+    target_compile_options(jsonlib_options INTERFACE "-Werror=strict-aliasing")
 endif()
 
 include(CheckIncludeFileCXX)
 include(CheckTypeSize)
 include(CheckStructHasMember)
 include(CheckCXXSymbolExists)
+
+# might have to do this: list(APPEND CMAKE_REQUIRED_INCLUDES ${ASIO_PATH}) <-- with some path that is missing...?
 
 check_include_file_cxx(clocale HAVE_CLOCALE)
 check_cxx_symbol_exists(localeconv clocale HAVE_LOCALECONV)
@@ -19,7 +22,7 @@ check_struct_has_member(lconv decimal_point clocale HAVE_DECIMAL_POINT LANGUAGE 
 if(NOT (HAVE_CLOCALE AND HAVE_LCONV_SIZE AND HAVE_DECIMAL_POINT AND HAVE_LOCALECONV))
     message(WARNING "Locale functionality is not supported")
     if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.12.0)
-        add_compile_definitions(JSONCPP_NO_LOCALE_SUPPORT)
+        target_compile_definitions(jsonlib_options PUBLIC JSONCPP_NO_LOCALE_SUPPORT)
     else()
         add_definitions(-DJSONCPP_NO_LOCALE_SUPPORT)
     endif()
@@ -107,14 +110,13 @@ list(APPEND REQUIRED_FEATURES
 
 
 if(BUILD_SHARED_LIBS)
+    set(SHARED_LIB ${PROJECT_NAME}_lib)
+    add_library(${SHARED_LIB} SHARED ${PUBLIC_HEADERS} ${JSONCPP_SOURCES})
     if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.12.0)
-        add_compile_definitions(JSON_DLL_BUILD)
+        target_compile_definitions(${SHARED_LIB} PUBLIC JSON_DLL_BUILD)
     else()
         add_definitions(-DJSON_DLL_BUILD)
     endif()
-
-    set(SHARED_LIB ${PROJECT_NAME}_lib)
-    add_library(${SHARED_LIB} SHARED ${PUBLIC_HEADERS} ${JSONCPP_SOURCES})
     set_target_properties(${SHARED_LIB} PROPERTIES
         OUTPUT_NAME jsoncpp
         VERSION ${PROJECT_VERSION}
@@ -128,6 +130,10 @@ if(BUILD_SHARED_LIBS)
     endif()
 
     target_compile_features(${SHARED_LIB} PUBLIC ${REQUIRED_FEATURES})
+    target_link_libraries(${SHARED_LIB} PUBLIC
+        $<BUILD_INTERFACE:project_options>
+        $<BUILD_INTERFACE:jsonlib_options>
+    )
 
     target_include_directories(${SHARED_LIB} PUBLIC
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
@@ -162,6 +168,10 @@ if(BUILD_STATIC_LIBS)
     endif()
 
     target_compile_features(${STATIC_LIB} PUBLIC ${REQUIRED_FEATURES})
+    target_link_libraries(${STATIC_LIB} PUBLIC
+        $<BUILD_INTERFACE:project_options>
+        $<BUILD_INTERFACE:jsonlib_options>
+    )
 
     target_include_directories(${STATIC_LIB} PUBLIC
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
@@ -189,6 +199,10 @@ if(BUILD_OBJECT_LIBS)
     endif()
 
     target_compile_features(${OBJECT_LIB} PUBLIC ${REQUIRED_FEATURES})
+    target_link_libraries(${OBJECT_LIB} PUBLIC
+        $<BUILD_INTERFACE:project_options>
+        $<BUILD_INTERFACE:jsonlib_options>
+    )
 
     target_include_directories(${OBJECT_LIB} PUBLIC
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
